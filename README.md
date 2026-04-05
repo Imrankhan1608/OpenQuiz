@@ -1,8 +1,11 @@
-# OpenQuiz (.md tsara2 monsieur )
+# OpenQuiz 
 
 Application de quiz interactif et progressif générée par IA.
 
 ---
+<img width="1296" height="786" alt="Captureop" src="https://github.com/user-attachments/assets/25f81118-fcf9-413b-a407-740a78be81e6" />
+<img width="1275" height="691" alt="Captureo" src="https://github.com/user-attachments/assets/6fc27aae-af14-4e70-883e-8bc840835935" />
+<img width="1195" height="722" alt="Capturo" src="https://github.com/user-attachments/assets/a7210a89-c169-4568-8c36-207238b50a5b" />
 
 ## Stack technique
 
@@ -67,75 +70,6 @@ GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxx
 
 Obtienez une clé Groq gratuitement sur : https://console.groq.com
 
-### 3. Base de données
-
-Crée la base et les tables :
-
-```sql
-CREATE DATABASE openquiz CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE openquiz;
-
--- Utilisateurs
-CREATE TABLE clients (
-  id_cli        INT PRIMARY KEY AUTO_INCREMENT,
-  pseudo        VARCHAR(50) UNIQUE NOT NULL,
-  mdp           VARCHAR(255) NOT NULL,
-  email         VARCHAR(100) UNIQUE,
-  email_verified TINYINT(1) DEFAULT 0,
-  status        ENUM('actif','inactif') DEFAULT 'actif',
-  created_at    DATETIME DEFAULT NOW()
-);
-
--- Tokens de session sécurisés
-CREATE TABLE login_tokens (
-  token   CHAR(64) PRIMARY KEY,
-  id_cli  INT NOT NULL,
-  expiry  DATETIME NOT NULL,
-  FOREIGN KEY (id_cli) REFERENCES clients(id_cli) ON DELETE CASCADE,
-  INDEX idx_expiry (expiry)
-);
-
--- Questions (BD + générées par IA)
-CREATE TABLE questions (
-  id_question      INT PRIMARY KEY AUTO_INCREMENT,
-  theme            VARCHAR(100) NOT NULL,
-  difficulte       ENUM('facile','moyen','difficile') DEFAULT 'facile',
-  question         TEXT NOT NULL,
-  reponse_correcte TEXT NOT NULL,
-  reponses_options JSON,
-  source           ENUM('manuel','ia') DEFAULT 'ia',
-  image            VARCHAR(255) DEFAULT NULL,
-  temps_alloue     INT DEFAULT 15,
-  created_at       DATETIME DEFAULT NOW(),
-  INDEX idx_theme_diff (theme, difficulte)
-);
-
--- Sessions de quiz
-CREATE TABLE sessions (
-  id_session   INT PRIMARY KEY AUTO_INCREMENT,
-  id_cli       INT NOT NULL,
-  score        INT DEFAULT 0,
-  nb_questions INT DEFAULT 0,
-  is_active    TINYINT(1) DEFAULT 0,
-  date_session DATETIME DEFAULT NOW(),
-  FOREIGN KEY (id_cli) REFERENCES clients(id_cli) ON DELETE CASCADE,
-  INDEX idx_cli (id_cli)
-);
-
--- Réponses individuelles
-CREATE TABLE reponses (
-  id_reponse  INT PRIMARY KEY AUTO_INCREMENT,
-  id_question INT NOT NULL,
-  id_cli      INT NOT NULL,
-  id_session  INT,
-  reponse     TEXT,
-  est_correct TINYINT(1) DEFAULT 0,
-  temps_pris  INT DEFAULT 0,
-  created_at  DATETIME DEFAULT NOW(),
-  FOREIGN KEY (id_cli)      REFERENCES clients(id_cli)     ON DELETE CASCADE,
-  FOREIGN KEY (id_session)  REFERENCES sessions(id_session) ON DELETE SET NULL
-);
-```
 
 ### 4. Lancer le serveur
 
