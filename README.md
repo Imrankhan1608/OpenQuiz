@@ -3,6 +3,9 @@
 Application de quiz interactif et progressif générée par IA.
 
 ---
+<img width="1296" height="786" alt="Captureop" src="https://github.com/user-attachments/assets/25f81118-fcf9-413b-a407-740a78be81e6" />
+<img width="1275" height="691" alt="Captureo" src="https://github.com/user-attachments/assets/6fc27aae-af14-4e70-883e-8bc840835935" />
+<img width="1195" height="722" alt="Capturo" src="https://github.com/user-attachments/assets/a7210a89-c169-4568-8c36-207238b50a5b" />
 
 ## Stack technique
 
