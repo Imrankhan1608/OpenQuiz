@@ -1,0 +1,6 @@
+.env
+src/config.php
+src/db.php
+src/src
+src/__pycache__
+src/assests

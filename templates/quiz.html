@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenQuiz — Jouer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════
+   RESET & TOKENS
+══════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:        #080e14;
+  --bg2:       #0d1620;
+  --bg3:       #111d29;
+  --blue:      #3a7bd5;
+  --blue-dim:  #2a5fa8;
+  --blue-glow: rgba(58,123,213,0.18);
+  --blue-line: rgba(58,123,213,0.22);
+  --green:     #055526;
+  --green-dim: rgba(46,204,113,0.15);
+  --red:       #b80911;
+  --red-dim:   rgba(231,76,60,0.15);
+  --yellow:    #8f3207;
+  --yellow-dim:rgba(243,156,18,0.15);
+  --txt:       #e8edf2;
+  --txt-dim:   rgba(232,237,242,0.45);
+  --txt-faint: rgba(232,237,242,0.18);
+  --mono:      'IBM Plex Mono', monospace;
+  --serif:     'DM Serif Display', serif;
+  --sans:      'DM Sans', sans-serif;
+  --radius:    14px;
+  --r-sm:      10px;
+  --transition: 0.22s ease;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--sans);
+  min-height: 100svh;
+  display: flex; flex-direction: column;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 200px; opacity: 0.55;
+}
+
+/* ══════════════════════════════════════
+   TOAST NOTIFICATIONS
+══════════════════════════════════════ */
+#toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+  max-width: min(400px, calc(100vw - 32px));
+}
+.toast {
+  font-family: var(--mono); font-size: 12px; line-height: 1.6;
+  padding: 14px 18px; border-radius: var(--r-sm);
+  display: flex; align-items: flex-start; gap: 12px;
+  animation: toastIn 0.35s cubic-bezier(.22,1,.36,1) both;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  position: relative; overflow: hidden;
+}
+.toast::after {
+  content: ''; position: absolute; bottom: 0; left: 0; height: 3px;
+  background: currentColor; opacity: 0.4;
+  animation: toastBar 4s linear forwards;
+}
+@keyframes toastBar { from { width: 100%; } to { width: 0%; } }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.toast-out {
+  animation: toastOut 0.3s ease forwards;
+}
+@keyframes toastOut {
+  to { opacity: 0; transform: translateX(20px) scale(0.94); }
+}
+.toast-error   { background: var(--red-dim);    border: 1px solid rgba(145, 19, 5, 0.4);    color: #b41907; }
+.toast-success { background: var(--green-dim);  border: 1px solid rgba(3, 112, 49, 0.4);   color: #07883f; }
+.toast-info    { background: var(--blue-glow);  border: 1px solid var(--blue-line);        color: #0752a8; }
+.toast-icon { flex-shrink: 0; font-size: 16px; }
+.toast-close {
+  position: absolute; top: 10px; right: 12px;
+  cursor: pointer; opacity: 0.5; font-size: 14px;
+  background: none; border: none; color: inherit; line-height: 1;
+}
+.toast-close:hover { opacity: 1; }
+
+/* ══════════════════════════════════════
+   NAV
+══════════════════════════════════════ */
+nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 5vw; height: 60px;
+  background: rgba(8,14,20,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--blue-line);
+  flex-shrink: 0;
+}
+.nav-logo {
+  font-family: var(--mono); font-size: 14px; font-weight: 600;
+  color: var(--txt); text-decoration: none;
+}
+.nav-logo span { color: var(--blue); }
+.nav-right { display: flex; align-items: center; gap: 16px; }
+.nav-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 400;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--txt-dim); text-decoration: none;
+  background: none; border: 1px solid transparent;
+  padding: 7px 14px; border-radius: 99px;
+  cursor: pointer; transition: all var(--transition);
+}
+.nav-btn:hover { color: var(--txt); border-color: var(--blue-line); }
+.nav-btn.accent { border-color: var(--blue-line); color: var(--blue); }
+.nav-btn.accent:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* ══════════════════════════════════════
+   MAIN LAYOUT
+══════════════════════════════════════ */
+main {
+  flex: 1; position: relative; z-index: 1;
+  padding: 40px 5vw 80px;
+  display: flex; flex-direction: column;
+  align-items: center;
+}
+
+/* ══════════════════════════════════════
+   SCREEN TRANSITIONS
+══════════════════════════════════════ */
+.screen {
+  display: none; opacity: 0;
+  width: 100%;
+  transition: opacity 0.3s ease;
+}
+.screen.active {
+  display: flex; opacity: 1;
+  flex-direction: column; align-items: center;
+}
+.screen.fade-in { animation: screenFadeIn 0.35s ease both; }
+@keyframes screenFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════
+   SETUP SCREEN
+══════════════════════════════════════ */
+#setupScreen {
+  max-width: 700px;
+  margin-top: 20px;
+}
+
+.screen-header { margin-bottom: 36px; }
+.screen-tag {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.screen-tag::before { content: ''; flex: 0 0 20px; height: 1px; background: var(--blue); opacity: 0.6; }
+.screen-header h1 {
+  font-family: var(--serif);
+  font-size: clamp(30px, 5vw, 50px);
+  line-height: 1.1; color: var(--txt);
+}
+.screen-header h1 em { font-style: italic; color: var(--blue); }
+
+.setup-card {
+  background: var(--bg2);
+  border: 1px solid var(--blue-line);
+  border-radius: 20px;
+  padding: 36px;
+  display: flex; flex-direction: column; gap: 24px;
+  width: 100%;
+}
+
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+.field-label {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--blue);
+}
+.field-input {
+  font-family: var(--mono); font-size: 13px;
+  background: var(--bg3); border: 1px solid var(--blue-line);
+  color: var(--txt); border-radius: var(--r-sm);
+  padding: 12px 16px; width: 100%;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+.field-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+.field-input::placeholder { color: var(--txt-faint); }
+
+.fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* Difficulty pills */
+.diff-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.diff-pill {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 9px 20px; border-radius: 99px;
+  border: 1px solid var(--blue-line);
+  background: transparent; color: var(--txt-dim);
+  cursor: pointer; transition: all var(--transition);
+}
+.diff-pill:hover { border-color: var(--blue); color: var(--txt); }
+.diff-pill.active[data-diff="facile"]    { background: var(--green);  border-color: var(--green);  color: #fff; }
+.diff-pill.active[data-diff="moyen"]     { background: var(--yellow); border-color: var(--yellow); color: #fff; }
+.diff-pill.active[data-diff="difficile"] { background: var(--red);    border-color: var(--red);    color: #fff; }
+
+/* Level progression selector */
+.level-mode-toggle {
+  display: flex; gap: 8px;
+}
+.level-mode-btn {
+  flex: 1; font-family: var(--mono); font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 10px 16px; border-radius: var(--r-sm);
+  border: 1px solid var(--blue-line);
+  background: transparent; color: var(--txt-dim);
+  cursor: pointer; transition: all var(--transition);
+  text-align: center;
+}
+.level-mode-btn.active { background: var(--blue-glow); border-color: var(--blue); color: var(--txt); }
+
+/* Reuse toggle */
+.reuse-toggle {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 12px; color: var(--txt-dim);
+  cursor: pointer;
+}
+.reuse-toggle input { display: none; }
+.toggle-track {
+  width: 36px; height: 20px; border-radius: 99px;
+  border: 1px solid var(--blue-line); background: var(--bg3);
+  position: relative; transition: all var(--transition);
+  flex-shrink: 0;
+}
+.toggle-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--txt-faint); position: absolute;
+  top: 2px; left: 2px; transition: all var(--transition);
+}
+.reuse-toggle input:checked ~ .toggle-track { background: var(--blue-glow); border-color: var(--blue); }
+.reuse-toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(16px); background: var(--blue); }
+
+.btn-start {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 16px 32px; width: 100%;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--radius);
+  cursor: pointer; transition: background var(--transition), transform 0.15s;
+  margin-top: 4px;
+}
+.btn-start:hover { background: var(--blue-dim); transform: translateY(-2px); }
+.btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ══════════════════════════════════════
+   LOADING SCREEN
+══════════════════════════════════════ */
+#loadingScreen {
+  align-items: center; justify-content: center;
+  gap: 24px; padding: 80px 20px; text-align: center;
+  min-height: 60vh;
+}
+
+.loader-ring {
+  width: 52px; height: 52px;
+  border: 2px solid var(--blue-line);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: var(--mono); font-size: 12px; color: var(--txt-dim); letter-spacing: 1px; }
+
+/* ══════════════════════════════════════
+   QUIZ SCREEN
+══════════════════════════════════════ */
+#quizScreen { max-width: 760px; gap: 22px; }
+
+/* Level badge */
+.level-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 6px 14px; border-radius: 99px;
+  border: 1px solid; transition: all 0.5s ease;
+}
+.level-badge.facile    { color: var(--green);  border-color: rgba(46,204,113,0.4);  background: var(--green-dim); }
+.level-badge.moyen     { color: var(--yellow); border-color: rgba(243,156,18,0.4);  background: var(--yellow-dim); }
+.level-badge.difficile { color: var(--red);    border-color: rgba(165, 27, 12, 0.4);   background: var(--red-dim); }
+.level-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.quiz-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; width: 100%;
+}
+.quiz-meta {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--txt-dim); letter-spacing: 0.5px;
+}
+.quiz-meta strong { color: var(--txt); font-weight: 500; }
+
+/* Timer */
+.timer-wrap { display: flex; align-items: center; gap: 10px; }
+.timer-display {
+  font-family: var(--mono); font-size: 20px; font-weight: 600;
+  color: var(--txt); min-width: 40px; text-align: right;
+  transition: color 0.3s;
+}
+.timer-display.urgent { color: var(--red); }
+.timer-bar { width: 100px; height: 4px; border-radius: 2px; background: var(--bg3); overflow: hidden; }
+.timer-bar-fill {
+  height: 100%; border-radius: 2px; background: var(--blue); width: 100%;
+  transition: width 1s linear, background 0.3s;
+}
+.timer-bar-fill.urgent { background: var(--red); }
+
+/* Progress dots */
+.progress-track { display: flex; gap: 5px; flex-wrap: wrap; width: 100%; }
+.progress-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--bg3); border: 1px solid var(--blue-line);
+  transition: all 0.3s ease;
+}
+.progress-dot.done-correct  { background: var(--green);  border-color: var(--green); }
+.progress-dot.done-wrong    { background: var(--red);    border-color: var(--red); }
+.progress-dot.current       { background: var(--blue);   border-color: var(--blue); transform: scale(1.3); box-shadow: 0 0 8px var(--blue-glow); }
+
+/* Level progress bar */
+.level-progress-wrap {
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+}
+.level-progress-label {
+  font-family: var(--mono); font-size: 10px; color: var(--txt-dim);
+  white-space: nowrap; letter-spacing: 1px;
+}
+.level-progress-bar {
+  flex: 1; height: 4px; border-radius: 2px; background: var(--bg3); overflow: hidden;
+}
+.level-progress-fill {
+  height: 100%; border-radius: 2px; background: var(--blue);
+  transition: width 0.6s cubic-bezier(.4,0,.2,1), background 0.5s;
+}
+.level-progress-fill.green  { background: var(--green); }
+.level-progress-fill.yellow { background: var(--yellow); }
+
+/* Question card */
+.question-card {
+  background: var(--bg2);
+  border: 1px solid var(--blue-line);
+  border-radius: 20px; padding: 36px;
+  width: 100%;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.question-card.fade { opacity: 0; transform: translateY(8px); }
+
+.question-num {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 14px;
+}
+.question-text {
+  font-family: var(--mono);
+  font-size: clamp(13px, 2vw, 16px);
+  line-height: 1.8; color: var(--txt);
+  margin-bottom: 28px;
+}
+.question-img {
+  width: 100%; border-radius: 10px; margin-bottom: 22px; display: block;
+}
+
+/* Options */
+.options { display: flex; flex-direction: column; gap: 9px; }
+.option-btn {
+  width: 100%; text-align: left;
+  font-family: var(--mono); font-size: 13px;
+  padding: 14px 18px;
+  background: var(--bg3); border: 1px solid var(--blue-line);
+  color: var(--txt-dim); border-radius: var(--r-sm);
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 12px;
+  line-height: 1.55;
+}
+.option-btn:hover:not(:disabled) {
+  border-color: var(--blue); color: var(--txt);
+  background: rgba(58,123,213,0.08); transform: translateX(3px);
+}
+.opt-letter {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--blue-line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; flex-shrink: 0;
+  color: var(--blue); transition: all 0.15s;
+}
+.option-btn:hover:not(:disabled) .opt-letter { background: var(--blue); border-color: var(--blue); color: #fff; }
+.option-btn.correct { border-color: var(--green); background: var(--green-dim); color: var(--txt); }
+.option-btn.correct .opt-letter { background: var(--green); border-color: var(--green); color: #fff; }
+.option-btn.wrong { border-color: var(--red); background: var(--red-dim); color: var(--txt); }
+.option-btn.wrong .opt-letter { background: var(--red); border-color: var(--red); color: #fff; }
+.option-btn:disabled { cursor: not-allowed; }
+
+/* ══════════════════════════════════════
+   LEVEL UP OVERLAY
+══════════════════════════════════════ */
+.level-up-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(8,14,20,0.92); backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none; transition: opacity 0.4s;
+  text-align: center; gap: 16px; padding: 24px;
+}
+.level-up-overlay.visible { opacity: 1; pointer-events: all; }
+.level-up-badge {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--yellow); padding: 6px 16px; border-radius: 99px;
+  border: 1px solid rgba(243,156,18,0.4); background: var(--yellow-dim);
+  animation: badgePop 0.5s cubic-bezier(.22,1,.36,1);
+}
+@keyframes badgePop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.level-up-title {
+  font-family: var(--serif);
+  font-size: clamp(28px, 6vw, 52px);
+  color: var(--txt);
+}
+.level-up-sub { font-family: var(--mono); font-size: 13px; color: var(--txt-dim); line-height: 1.8; }
+.level-up-continue {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 13px 28px; border-radius: var(--radius);
+  background: var(--blue); color: #fff; border: none;
+  cursor: pointer; margin-top: 8px;
+  transition: background var(--transition), transform 0.15s;
+}
+.level-up-continue:hover { background: var(--blue-dim); transform: translateY(-2px); }
+
+/* ══════════════════════════════════════
+   RESULT SCREEN
+══════════════════════════════════════ */
+#resultScreen { max-width: 700px; gap: 22px; }
+
+.result-card {
+  background: var(--bg2);
+  border: 1px solid var(--blue-line);
+  border-radius: 20px; padding: 44px 36px;
+  text-align: center; width: 100%;
+}
+.result-score-ring {
+  position: relative; width: 120px; height: 120px; margin: 0 auto 24px;
+}
+.result-score-ring svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--bg3); stroke-width: 6; }
+.ring-fill {
+  fill: none; stroke: var(--blue); stroke-width: 6;
+  stroke-linecap: round; stroke-dasharray: 345; stroke-dashoffset: 345;
+  transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+}
+.ring-fill.green { stroke: var(--green); }
+.ring-fill.yellow { stroke: var(--yellow); }
+.ring-fill.red { stroke: var(--red); }
+.result-score-num {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--txt);
+}
+.result-title { font-family: var(--serif); font-size: clamp(24px, 4vw, 36px); color: var(--txt); margin-bottom: 8px; }
+.result-sub { font-family: var(--mono); font-size: 12px; color: var(--txt-dim); line-height: 2; }
+.result-level-tag {
+  display: inline-block; margin-top: 14px;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 99px; border: 1px solid;
+}
+.result-level-tag.facile    { color: var(--green);  border-color: rgba(4, 136, 59, 0.4);  background: var(--green-dim); }
+.result-level-tag.moyen     { color: var(--yellow); border-color: rgba(243,156,18,0.4);  background: var(--yellow-dim); }
+.result-level-tag.difficile { color: var(--red);    border-color: rgba(231,76,60,0.4);   background: var(--red-dim); }
+
+/* Review */
+.review-list { display: flex; flex-direction: column; gap: 9px; width: 100%; }
+.review-item {
+  background: var(--bg2); border: 1px solid var(--blue-line);
+  border-radius: var(--r-sm); padding: 15px 18px;
+  font-family: var(--mono); font-size: 12px;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.review-icon { font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+.review-q { color: var(--txt); margin-bottom: 4px; line-height: 1.6; }
+.review-a { color: var(--txt-dim); line-height: 1.6; }
+.review-a strong { color: var(--green); }
+
+/* Result actions */
+.result-actions { display: flex; gap: 10px; flex-wrap: wrap; width: 100%; }
+.btn-result {
+  flex: 1; font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 13px 20px; border-radius: var(--radius);
+  cursor: pointer; transition: all var(--transition); border: none;
+  min-width: 120px; white-space: nowrap;
+}
+.btn-result.primary { background: var(--blue); color: #fff; }
+.btn-result.primary:hover { background: var(--blue-dim); transform: translateY(-2px); }
+.btn-result.secondary { background: transparent; border: 1px solid var(--blue-line); color: var(--txt-dim); }
+.btn-result.secondary:hover { border-color: var(--blue); color: var(--txt); }
+.btn-result.share { background: var(--green-dim); border: 1px solid rgba(4, 59, 27, 0.4); color: var(--green); }
+.btn-result.share:hover { background: rgba(3, 75, 33, 0.25); transform: translateY(-2px); }
+
+/* ══════════════════════════════════════
+   DASHBOARD SCREEN
+══════════════════════════════════════ */
+#dashScreen { max-width: 700px; gap: 20px; }
+
+.dash-header { width: 100%; margin-bottom: 4px; }
+.dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; }
+.dash-card {
+  background: var(--bg2); border: 1px solid var(--blue-line);
+  border-radius: 16px; padding: 24px 22px;
+}
+.dash-card.full { grid-column: 1 / -1; }
+.dash-num {
+  font-family: var(--mono); font-size: clamp(28px, 5vw, 40px); font-weight: 600;
+  color: var(--txt); line-height: 1; margin-bottom: 6px;
+}
+.dash-num span { font-size: 0.5em; color: var(--txt-dim); font-weight: 400; }
+.dash-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--txt-dim);
+}
+.dash-num.green { color: var(--green); }
+.dash-num.yellow { color: var(--yellow); }
+.dash-num.blue { color: var(--blue); }
+
+/* Mini history chart */
+.history-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.history-row {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--txt-dim);
+}
+.history-bar-wrap { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.history-bar {
+  height: 100%; border-radius: 3px; transition: width 0.8s ease;
+  background: var(--blue);
+}
+.history-bar.good { background: var(--green); }
+.history-bar.ok   { background: var(--yellow); }
+.history-bar.bad  { background: var(--red); }
+.history-pct { min-width: 32px; text-align: right; color: var(--txt); }
+.history-date { min-width: 70px; }
+
+/* Empty state */
+.dash-empty {
+  text-align: center; padding: 40px 20px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--txt-faint); line-height: 2;
+}
+
+/* ══════════════════════════════════════
+   SHARE MODAL
+══════════════════════════════════════ */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(8,14,20,0.88); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.modal-backdrop.visible { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: var(--bg2); border: 1px solid var(--blue-line);
+  border-radius: 20px; padding: 36px; max-width: 440px; width: 100%;
+  transform: scale(0.95); transition: transform 0.3s;
+}
+.modal-backdrop.visible .modal-box { transform: scale(1); }
+.modal-title {
+  font-family: var(--serif); font-size: 24px; color: var(--txt);
+  margin-bottom: 20px;
+}
+.share-text-box {
+  background: var(--bg3); border: 1px solid var(--blue-line);
+  border-radius: var(--r-sm); padding: 16px;
+  font-family: var(--mono); font-size: 13px;
+  color: var(--txt-dim); line-height: 1.8; white-space: pre-line;
+  margin-bottom: 18px; user-select: all;
+}
+.share-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-modal {
+  flex: 1; font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 12px 20px; border-radius: var(--radius);
+  cursor: pointer; transition: all var(--transition); border: none;
+  min-width: 100px;
+}
+.btn-modal.primary { background: var(--blue); color: #fff; }
+.btn-modal.primary:hover { background: var(--blue-dim); }
+.btn-modal.cancel { background: transparent; border: 1px solid var(--blue-line); color: var(--txt-dim); }
+.btn-modal.cancel:hover { border-color: var(--blue); color: var(--txt); }
+
+/* ══════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════ */
+@media (max-width: 640px) {
+  main { padding: 24px 16px 60px; }
+  .setup-card { padding: 24px 18px; }
+  .fields-row { grid-template-columns: 1fr; }
+  .question-card { padding: 24px 18px; }
+  .quiz-topbar { gap: 8px; }
+  .timer-bar { width: 70px; }
+  .result-card { padding: 32px 22px; }
+  .result-actions { flex-direction: column; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-card.full { grid-column: 1; }
+  .level-mode-toggle { flex-direction: column; }
+  #toast-container { bottom: 16px; right: 16px; left: 16px; }
+}
+@media (max-width: 380px) {
+  .option-btn { font-size: 12px; padding: 12px 14px; }
+  .diff-pills { flex-direction: column; }
+  .diff-pill { text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ TOASTS ══ -->
+<div id="toast-container"></div>
+
+<!-- ══ LEVEL UP OVERLAY ══ -->
+<div class="level-up-overlay" id="levelUpOverlay">
+  <div class="level-up-badge">✦ Niveau suivant ✦</div>
+  <h2 class="level-up-title" id="levelUpTitle">Niveau supérieur !</h2>
+  <p class="level-up-sub" id="levelUpSub">Tu passes au niveau suivant.</p>
+  <button class="level-up-continue" id="levelUpContinue">Continuer </button>
+</div>
+
+<!-- ══ SHARE MODAL ══ -->
+<div class="modal-backdrop" id="shareModal">
+  <div class="modal-box">
+    <h3 class="modal-title">Partager mes résultats</h3>
+    <div class="share-text-box" id="shareText"></div>
+    <div class="share-actions">
+      <button class="btn-modal primary" id="copyShareBtn"> Copier</button>
+      <button class="btn-modal cancel" onclick="closeModal('shareModal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <a class="nav-logo" href="acceuil.php"><span>//</span> OpenQuiz</a>
+  <div class="nav-right">
+    <button class="nav-btn accent" onclick="showDash()"> Stats</button>
+    <a class="nav-btn" href="localhost/iMRANE_I01C_Projet_Quiz/templates/logout.php">Déconnexion</a>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ══ SETUP ══ -->
+  <div class="screen active fade-in" id="setupScreen">
+    <div class="screen-header" style="align-self:flex-start; max-width:700px; width:100%;">
+      <div class="screen-tag">Nouvelle session</div>
+      <h1>Configure<br>ton <em>quiz.</em></h1>
+    </div>
+
+    <div class="setup-card">
+      <!-- Thème -->
+      <div class="field-group">
+        <div class="field-label">Thème</div>
+        <input class="field-input" id="theme" type="text"
+          placeholder="ex: la révolution française, physique quantique..."
+          value="histoire de france">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--txt-faint);margin-top:4px;">
+          Écris en phrase ou en mots — les mots-clés seront extraits automatiquement.
+        </div>
+      </div>
+
+      <!-- Mode : difficulté fixe ou progression -->
+      <div class="field-group">
+        <div class="field-label">Mode de jeu</div>
+        <div class="level-mode-toggle">
+          <button class="level-mode-btn active" id="modeFixed" data-mode="fixed">
+             Difficulté fixe
+          </button>
+          <button class="level-mode-btn" id="modeProgressive" data-mode="progressive">
+            ⬆ Progression de niveau
+          </button>
+        </div>
+      </div>
+
+      <!-- Difficulté (visible en mode fixe) -->
+      <div class="field-group" id="difficultyGroup">
+        <div class="field-label">Difficulté</div>
+        <div class="diff-pills">
+          <button class="diff-pill active" data-diff="facile">Facile</button>
+          <button class="diff-pill" data-diff="moyen">Moyen</button>
+          <button class="diff-pill" data-diff="difficile">Difficile</button>
+        </div>
+      </div>
+
+      <!-- Paramètres -->
+      <div class="fields-row">
+        <div class="field-group">
+          <div class="field-label">Questions</div>
+          <input class="field-input" id="nbQuestions" type="number" value="9" min="3" max="20">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Secondes / question</div>
+          <input class="field-input" id="temps" type="number" value="15" min="5" max="60">
+        </div>
+      </div>
+
+      <!-- Réutilisation BD -->
+      <label class="reuse-toggle">
+        <input type="checkbox" id="reuseDb" checked>
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        Réutiliser les questions existantes en base de données
+      </label>
+
+      <button class="btn-start" id="startBtn">Commencer le quiz </button>
+    </div>
+  </div>
+
+  <!-- ══ LOADING ══ -->
+  <div class="screen" id="loadingScreen">
+    <div class="loader-ring"></div>
+    <div class="loading-text" id="loadingText">Génération des questions...</div>
+  </div>
+
+  <!-- ══ QUIZ ══ -->
+  <div class="screen" id="quizScreen">
+    <div class="quiz-topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="level-badge" id="levelBadge">
+          <div class="level-dot"></div>
+          <span id="levelLabel">Facile</span>
+        </div>
+        <div class="quiz-meta">
+          Q<strong id="qNum">1</strong>/<strong id="qTotal">9</strong>
+          &nbsp;·&nbsp; <strong id="qTheme">—</strong>
+        </div>
+      </div>
+      <div class="timer-wrap">
+        <div class="timer-bar"><div class="timer-bar-fill" id="timerBarFill"></div></div>
+        <div class="timer-display" id="timerDisplay">15</div>
+      </div>
+    </div>
+
+    <!-- Level progress -->
+    <div class="level-progress-wrap" id="levelProgressWrap">
+      <div class="level-progress-label" id="levelProgressLabel">NIVEAU 1</div>
+      <div class="level-progress-bar">
+        <div class="level-progress-fill" id="levelProgressFill" style="width:33%"></div>
+      </div>
+    </div>
+
+    <div class="progress-track" id="progressTrack"></div>
+
+    <div class="question-card" id="questionCard">
+      <div class="question-num" id="questionNum">Q01</div>
+      <img class="question-img" id="questionImg" src="" alt="" style="display:none">
+      <div class="question-text" id="questionText">Chargement...</div>
+      <div class="options" id="optionsContainer"></div>
+    </div>
+  </div>
+
+  <!-- ══ RESULT ══ -->
+  <div class="screen" id="resultScreen">
+    <div class="result-card">
+      <div class="result-score-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="55"/>
+          <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="55"/>
+        </svg>
+        <div class="result-score-num" id="resultScoreNum">0/0</div>
+      </div>
+      <h2 class="result-title" id="resultTitle">Quiz terminé</h2>
+      <p class="result-sub" id="resultSub"></p>
+      <div class="result-level-tag" id="resultLevelTag"></div>
+    </div>
+
+    <div class="review-list" id="reviewList"></div>
+
+    <div class="result-actions">
+      <button class="btn-result primary" id="retryBtn"> Rejouer</button>
+      <button class="btn-result share" id="shareBtn"> Partager</button>
+      <button class="btn-result secondary" onclick="showDash()"> Mes stats</button>
+      <button class="btn-result secondary" onclick="showScreen('setupScreen')"> Accueil</button>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD ══ -->
+  <div class="screen" id="dashScreen">
+    <div class="dash-header screen-header" style="width:100%;">
+      <div class="screen-tag">Tableau de bord</div>
+      <h1>Tes <em>performances.</em></h1>
+    </div>
+
+    <div class="dash-grid" id="dashGrid">
+      <div class="dash-card dash-empty full" id="dashLoading">
+        <div class="loader-ring" style="margin:0 auto 16px;"></div>
+        Chargement des statistiques...
+      </div>
+    </div>
+
+    <div class="result-actions" style="width:100%;max-width:700px;">
+      <button class="btn-result primary" onclick="showScreen('setupScreen')">Nouveau quiz </button>
+      <button class="btn-result secondary" id="dashBackBtn"> Retour</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════ */
+var state = {
+  questions:    [],
+  allQuestions: [],   // Toutes les questions (mode progressif)
+  index:        0,
+  score:        0,
+  answers:      [],
+  timerInterval:null,
+  timeLeft:     0,
+  currentDiff:  'facile',
+  mode:         'fixed',   // 'fixed' | 'progressive'
+  levelScores:  { facile: 0, moyen: 0, difficile: 0 },
+  levelTotals:  { facile: 0, moyen: 0, difficile: 0 },
+  pendingLevelUp: null,
+  previousScreen: 'setupScreen'
+};
+
+var LEVEL_ORDER = ['facile', 'moyen', 'difficile'];
+var LEVEL_NAMES = { facile: 'Facile', moyen: 'Moyen', difficile: 'Difficile' };
+
+/* ══════════════════════════════════════════════════════
+   TOAST SYSTEM
+══════════════════════════════════════════════════════ */
+function toast(message, type, duration) {
+  type = type || 'info';
+  duration = duration || 4000;
+  var icons = { error: '⚠', success: '✓', info: 'ℹ' };
+
+  var el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML =
+    '<span class="toast-icon">' + icons[type] + '</span>' +
+    '<span style="flex:1">' + message + '</span>' +
+    '<button class="toast-close" onclick="this.parentElement.remove()">×</button>';
+
+  document.getElementById('toast-container').appendChild(el);
+
+  // Auto-remove
+  setTimeout(function() {
+    el.classList.add('toast-out');
+    setTimeout(function() { el.remove(); }, 350);
+  }, duration);
+}
+
+/* ══════════════════════════════════════════════════════
+   SCREENS
+══════════════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) {
+    s.classList.remove('active', 'fade-in');
+    s.style.display = 'none';
+  });
+  var target = document.getElementById(id);
+  target.style.display = 'flex';
+  requestAnimationFrame(function() {
+    target.classList.add('active', 'fade-in');
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   MODALS
+══════════════════════════════════════════════════════ */
+function openModal(id) { document.getElementById(id).classList.add('visible'); }
+function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+/* ══════════════════════════════════════════════════════
+   MODE & DIFFICULTY
+══════════════════════════════════════════════════════ */
+document.querySelectorAll('.level-mode-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.level-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    state.mode = btn.dataset.mode;
+    var group = document.getElementById('difficultyGroup');
+    if (state.mode === 'progressive') {
+      group.style.opacity = '0.4';
+      group.style.pointerEvents = 'none';
+      document.getElementById('nbQuestions').value = '9';
+      document.getElementById('nbQuestions').title = 'En mode progressif : 3 questions par niveau';
+    } else {
+      group.style.opacity = '1';
+      group.style.pointerEvents = 'auto';
+    }
+  });
+});
+
+document.querySelectorAll('.diff-pill').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.diff-pill').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    state.currentDiff = btn.dataset.diff;
+  });
+});
+
+/* ══════════════════════════════════════════════════════
+   START
+══════════════════════════════════════════════════════ */
+document.getElementById('startBtn').addEventListener('click', startQuiz);
+
+async function startQuiz() {
+  var theme   = document.getElementById('theme').value.trim();
+  var nb      = Math.min(20, Math.max(3, parseInt(document.getElementById('nbQuestions').value) || 9));
+  var temps   = Math.min(60, Math.max(5, parseInt(document.getElementById('temps').value) || 15));
+  var reuseDb = document.getElementById('reuseDb').checked;
+
+  if (!theme) {
+    toast('Le thème est obligatoire. Indique un sujet pour ton quiz.', 'error');
+    document.getElementById('theme').focus();
+    return;
+  }
+
+  // Mode progressif : forcer 9 questions (3 par niveau)
+  if (state.mode === 'progressive') {
+    nb = 9;
+    state.currentDiff = 'facile';
+  }
+
+  showScreen('loadingScreen');
+  document.getElementById('loadingText').textContent = 'Analyse du thème...';
+
+  try {
+    // Mode progressif : charger les 3 niveaux simultanément
+    if (state.mode === 'progressive') {
+      document.getElementById('loadingText').textContent = 'Génération sur 3 niveaux...';
+      var results = await Promise.all(
+        LEVEL_ORDER.map(function(diff) {
+          return fetchQuestions(theme, diff, 3, temps, reuseDb);
+        })
+      );
+      state.allQuestions = results[0].concat(results[1]).concat(results[2]);
+      state.questions = state.allQuestions.slice(0, 3); // On démarre par facile
+    } else {
+      document.getElementById('loadingText').textContent = 'Génération des questions...';
+      state.questions = await fetchQuestions(theme, state.currentDiff, nb, temps, reuseDb);
+    }
+
+    if (!state.questions.length) {
+      throw new Error('Aucune question générée pour ce thème.');
+    }
+
+    // Init état
+    state.index  = 0;
+    state.score  = 0;
+    state.answers = [];
+    state.levelScores  = { facile: 0, moyen: 0, difficile: 0 };
+    state.levelTotals  = { facile: 0, moyen: 0, difficile: 0 };
+    state.pendingLevelUp = null;
+
+    document.getElementById('qTotal').textContent = state.mode === 'progressive' ? 9 : state.questions.length;
+    document.getElementById('qTheme').textContent = theme;
+
+    buildProgressTrack();
+    updateLevelUI();
+    showScreen('quizScreen');
+    showQuestion();
+
+  } catch (e) {
+    showScreen('setupScreen');
+    toast(e.message || 'Erreur de connexion. Vérifiez votre réseau.', 'error', 6000);
+  }
+}
+
+async function fetchQuestions(theme, diff, nb, temps, reuseDb) {
+  var res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ theme: theme, difficulte: diff, nb: nb, temps: temps, reuse_db: reuseDb })
+  });
+  var data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Erreur serveur (' + res.status + ').');
+  return data.questions || [];
+}
+
+/* ══════════════════════════════════════════════════════
+   PROGRESS TRACK
+══════════════════════════════════════════════════════ */
+function buildProgressTrack() {
+  var track = document.getElementById('progressTrack');
+  track.innerHTML = '';
+  var total = state.mode === 'progressive' ? 9 : state.questions.length;
+  for (var i = 0; i < total; i++) {
+    var d = document.createElement('div');
+    d.className = 'progress-dot' + (i === 0 ? ' current' : '');
+    d.id = 'pd-' + i;
+    track.appendChild(d);
+  }
+}
+
+function updateProgressDot(i, correct) {
+  var d = document.getElementById('pd-' + i);
+  if (!d) return;
+  d.classList.remove('current');
+  d.classList.add(correct ? 'done-correct' : 'done-wrong');
+  var next = document.getElementById('pd-' + (i + 1));
+  if (next) next.classList.add('current');
+}
+
+/* ══════════════════════════════════════════════════════
+   LEVEL UI
+══════════════════════════════════════════════════════ */
+function updateLevelUI() {
+  var diff  = state.currentDiff;
+  var badge = document.getElementById('levelBadge');
+  badge.className = 'level-badge ' + diff;
+  document.getElementById('levelLabel').textContent = LEVEL_NAMES[diff];
+
+  if (state.mode === 'progressive') {
+    var levelIndex = LEVEL_ORDER.indexOf(diff);
+    var pct = ((levelIndex + 1) / 3) * 100;
+    document.getElementById('levelProgressLabel').textContent =
+      'NIVEAU ' + (levelIndex + 1) + '/3 — ' + LEVEL_NAMES[diff].toUpperCase();
+    var fill = document.getElementById('levelProgressFill');
+    fill.style.width = pct + '%';
+    fill.className = 'level-progress-fill ' + (diff === 'facile' ? 'green' : diff === 'moyen' ? 'yellow' : '');
+    document.getElementById('levelProgressWrap').style.display = 'flex';
+  } else {
+    document.getElementById('levelProgressWrap').style.display = 'none';
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   SHOW QUESTION
+══════════════════════════════════════════════════════ */
+function getCurrentQuestions() {
+  if (state.mode === 'progressive') {
+    var levelIndex = LEVEL_ORDER.indexOf(state.currentDiff);
+    return state.allQuestions.slice(levelIndex * 3, (levelIndex + 1) * 3);
+  }
+  return state.questions;
+}
+
+function getLocalIndex() {
+  if (state.mode !== 'progressive') return state.index;
+  var levelIndex = LEVEL_ORDER.indexOf(state.currentDiff);
+  return state.index - (levelIndex * 3);
+}
+
+function showQuestion() {
+  var questions = getCurrentQuestions();
+  var localIndex = getLocalIndex();
+
+  // Fin du niveau ou du quiz
+  if (state.mode === 'progressive') {
+    var levelIndex = LEVEL_ORDER.indexOf(state.currentDiff);
+    var questionsInLevel = 3;
+
+    if (localIndex >= questionsInLevel) {
+      // Fin d'un niveau → level up ou fin du quiz
+      var nextLevel = LEVEL_ORDER[levelIndex + 1];
+      if (nextLevel) {
+        showLevelUp(nextLevel);
+      } else {
+        finishQuiz();
+      }
+      return;
+    }
+  } else {
+    if (state.index >= questions.length) { finishQuiz(); return; }
+  }
+
+  var q = questions[localIndex] || questions[state.index];
+  if (!q) { finishQuiz(); return; }
+
+  var card = document.getElementById('questionCard');
+  card.classList.add('fade');
+
+  var globalIndex = state.index;
+  document.getElementById('qNum').textContent = globalIndex + 1;
+
+  setTimeout(function() {
+    document.getElementById('questionNum').textContent =
+      'Q' + String(globalIndex + 1).padStart(2, '0');
+    document.getElementById('questionText').textContent = q.question;
+
+    var img = document.getElementById('questionImg');
+    if (q.image) { img.src = q.image; img.style.display = 'block'; }
+    else          { img.style.display = 'none'; }
+
+    var opts = document.getElementById('optionsContainer');
+    opts.innerHTML = '';
+    var letters = ['A', 'B', 'C', 'D'];
+    (q.options || []).forEach(function(opt, i) {
+      var btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.innerHTML = '<span class="opt-letter">' + (letters[i] || (i + 1)) + '</span>' + escapeHtml(opt);
+      btn.dataset.value = opt;
+      btn.addEventListener('click', function() { selectAnswer(opt); });
+      opts.appendChild(btn);
+    });
+
+    card.classList.remove('fade');
+    startTimer(q.temps || 15);
+  }, 220);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ══════════════════════════════════════════════════════
+   TIMER
+══════════════════════════════════════════════════════ */
+function startTimer(seconds) {
+  clearInterval(state.timerInterval);
+  state.timeLeft = seconds;
+  var fill    = document.getElementById('timerBarFill');
+  var display = document.getElementById('timerDisplay');
+
+  function tick() {
+    display.textContent = state.timeLeft;
+    var pct = (state.timeLeft / seconds) * 100;
+    fill.style.width = pct + '%';
+    var urgent = state.timeLeft <= 5;
+    fill.classList.toggle('urgent', urgent);
+    display.classList.toggle('urgent', urgent);
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timerInterval);
+      selectAnswer(null);
+      return;
+    }
+    state.timeLeft--;
+  }
+  tick();
+  state.timerInterval = setInterval(tick, 1000);
+}
+
+/* ══════════════════════════════════════════════════════
+   SELECT ANSWER
+══════════════════════════════════════════════════════ */
+function selectAnswer(choice) {
+  clearInterval(state.timerInterval);
+  var questions = getCurrentQuestions();
+  var localIndex = getLocalIndex();
+  var q = questions[localIndex] || questions[state.index];
+  if (!q) return;
+
+  var correct = choice !== null && choice === q.reponse_correcte;
+  var timeTaken = (q.temps || 15) - state.timeLeft;
+
+  // Highlight
+  document.querySelectorAll('.option-btn').forEach(function(btn) {
+    btn.disabled = true;
+    if (btn.dataset.value === q.reponse_correcte) btn.classList.add('correct');
+    else if (btn.dataset.value === choice && !correct) btn.classList.add('wrong');
+  });
+
+  state.answers.push({
+    id_question:      q.id_question || 0,
+    reponse:          choice,
+    est_correct:      correct,
+    temps_pris:       timeTaken,
+    question:         q.question,
+    reponse_correcte: q.reponse_correcte,
+    difficulte:       state.currentDiff
+  });
+
+  if (correct) {
+    state.score++;
+    state.levelScores[state.currentDiff]++;
+  }
+  state.levelTotals[state.currentDiff]++;
+
+  updateProgressDot(state.index, correct);
+  state.index++;
+
+  setTimeout(showQuestion, 850);
+}
+
+/* ══════════════════════════════════════════════════════
+   LEVEL UP
+══════════════════════════════════════════════════════ */
+function showLevelUp(nextLevel) {
+  var prevLevel = state.currentDiff;
+  var prevScore = state.levelScores[prevLevel];
+  var prevTotal = state.levelTotals[prevLevel];
+
+  state.pendingLevelUp = nextLevel;
+
+  document.getElementById('levelUpTitle').textContent =
+    LEVEL_EMOJIS[nextLevel] + ' Niveau ' + LEVEL_NAMES[nextLevel] + ' !';
+  document.getElementById('levelUpSub').textContent =
+    'Niveau ' + LEVEL_NAMES[prevLevel] + ' terminé : ' + prevScore + '/' + prevTotal + ' bonnes réponses.\n' +
+    'Tu passes maintenant au niveau ' + LEVEL_NAMES[nextLevel].toLowerCase() + '.';
+
+  document.getElementById('levelUpOverlay').classList.add('visible');
+}
+
+document.getElementById('levelUpContinue').addEventListener('click', function() {
+  document.getElementById('levelUpOverlay').classList.remove('visible');
+  if (state.pendingLevelUp) {
+    state.currentDiff = state.pendingLevelUp;
+    state.pendingLevelUp = null;
+    updateLevelUI();
+    showQuestion();
+  }
+});
+
+/* ══════════════════════════════════════════════════════
+   FINISH QUIZ
+══════════════════════════════════════════════════════ */
+async function finishQuiz() {
+  var total = state.answers.length;
+  var pct   = total ? Math.round((state.score / total) * 100) : 0;
+
+  // Score ring
+  var circumference = 345;
+  var offset = circumference - (pct / 100) * circumference;
+  var ring = document.getElementById('ringFill');
+  ring.className = 'ring-fill ' + (pct >= 70 ? 'green' : pct >= 40 ? 'yellow' : 'red');
+  document.getElementById('resultScoreNum').textContent = state.score + '/' + total;
+
+  var title = pct >= 80 ? 'Excellent !' : pct >= 60 ? 'Bien joué.' : pct >= 40 ? 'Pas mal.' : 'À retravailler.';
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultSub').textContent =
+    state.score + ' bonne' + (state.score > 1 ? 's' : '') + ' réponse' + (state.score > 1 ? 's' : '') +
+    ' sur ' + total + ' — ' + pct + '%';
+
+  // Level tag
+  var levelTag = document.getElementById('resultLevelTag');
+  levelTag.textContent = 'Niveau atteint : ' + LEVEL_NAMES[state.currentDiff];
+  levelTag.className = 'result-level-tag ' + state.currentDiff;
+
+  // Review
+  var list = document.getElementById('reviewList');
+  list.innerHTML = '';
+  state.answers.forEach(function(a) {
+    var item = document.createElement('div');
+    item.className = 'review-item';
+    item.innerHTML =
+      '<div class="review-icon">' + (a.est_correct ? '✓' : '✗') + '</div>' +
+      '<div><div class="review-q">' + escapeHtml(a.question) + '</div>' +
+      '<div class="review-a">Bonne réponse : <strong>' + escapeHtml(a.reponse_correcte) + '</strong>' +
+      (!a.est_correct && a.reponse ? ' — Tu as répondu : ' + escapeHtml(a.reponse) : '') + '</div></div>';
+    list.appendChild(item);
+  });
+
+  showScreen('resultScreen');
+  setTimeout(function() { ring.style.strokeDashoffset = offset; }, 120);
+
+  // Share button
+  document.getElementById('shareBtn').onclick = function() { openShareModal(pct, total); };
+  document.getElementById('retryBtn').onclick  = function() { showScreen('setupScreen'); };
+
+  // Submit to server (silently)
+  try {
+    var res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ score: state.score, total: total, answers: state.answers })
+    });
+    if (!res.ok) {
+      var d = await res.json();
+      toast('Résultats non sauvegardés : ' + (d.error || 'erreur serveur.'), 'error', 5000);
+    } else {
+      toast('Résultats sauvegardés ✓', 'success', 3000);
+    }
+  } catch (e) {
+    toast('Impossible de sauvegarder les résultats (réseau).', 'error', 5000);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   SHARE
+══════════════════════════════════════════════════════ */
+function openShareModal(pct, total) {
+  var theme = document.getElementById('qTheme').textContent;
+  var mode  = state.mode === 'progressive' ? '(mode progression)' : '(' + LEVEL_NAMES[state.currentDiff] + ')';
+  var text =
+    ' OpenQuiz — Résultats\n' +
+    '──────────────────────\n' +
+    'Thème : ' + theme + '\n' +
+    'Mode : ' + mode + '\n' +
+    'Score : ' + state.score + '/' + total + ' — ' + pct + '%\n' +
+    '──────────────────────\n' +
+    (pct >= 80 ? ' Excellent !' : pct >= 60 ? ' Bien joué !' : pct >= 40 ? ' Pas mal !' : ' À retravailler !') + '\n' +
+    'Joue toi aussi sur OpenQuiz !';
+
+  document.getElementById('shareText').textContent = text;
+  openModal('shareModal');
+}
+
+document.getElementById('copyShareBtn').addEventListener('click', function() {
+  var text = document.getElementById('shareText').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    toast('Résultats copiés dans le presse-papier !', 'success', 3000);
+    closeModal('shareModal');
+  }).catch(function() {
+    toast('Impossible de copier. Sélectionne le texte manuellement.', 'error', 4000);
+  });
+});
+
+/* ══════════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════════ */
+async function showDash() {
+  state.previousScreen = document.querySelector('.screen.active')?.id || 'setupScreen';
+  document.getElementById('dashBackBtn').onclick = function() {
+    showScreen(state.previousScreen);
+  };
+  showScreen('dashScreen');
+
+  var grid = document.getElementById('dashGrid');
+  grid.innerHTML = '<div class="dash-card dash-empty full" id="dashLoading"><div class="loader-ring" style="margin:0 auto 16px;"></div>Chargement...</div>';
+
+  try {
+    var res = await fetch('/api/stats', { credentials: 'include' });
+    if (!res.ok) {
+      var d = await res.json();
+      throw new Error(d.error || 'Erreur lors du chargement des stats.');
+    }
+    var stats = await res.json();
+    renderDash(stats);
+  } catch (e) {
+    grid.innerHTML =
+      '<div class="dash-card dash-empty full">' +
+      '⚠ ' + (e.message || 'Erreur réseau') + '<br>' +
+      '<span style="opacity:0.5">Réessaie dans quelques secondes.</span></div>';
+    toast(e.message || 'Erreur lors du chargement des statistiques.', 'error');
+  }
+}
+
+function renderDash(stats) {
+  var grid = document.getElementById('dashGrid');
+
+  var meilleurColor = stats.meilleur_score_pct >= 70 ? 'green' : stats.meilleur_score_pct >= 40 ? 'yellow' : '';
+  var moyenneColor  = stats.moyenne_score_pct  >= 70 ? 'green' : stats.moyenne_score_pct  >= 40 ? 'yellow' : '';
+
+  var historyHTML = '';
+  if (stats.historique && stats.historique.length) {
+    historyHTML = '<div class="history-list">';
+    stats.historique.forEach(function(h) {
+      var barClass = h.pct >= 70 ? 'good' : h.pct >= 40 ? 'ok' : 'bad';
+      historyHTML +=
+        '<div class="history-row">' +
+        '<span class="history-date">' + h.date + '</span>' +
+        '<div class="history-bar-wrap"><div class="history-bar ' + barClass + '" style="width:' + h.pct + '%"></div></div>' +
+        '<span class="history-pct">' + h.pct + '%</span>' +
+        '</div>';
+    });
+    historyHTML += '</div>';
+  } else {
+    historyHTML = '<div style="font-family:var(--mono);font-size:12px;color:var(--txt-faint);margin-top:12px;">Aucune session encore.</div>';
+  }
+
+  grid.innerHTML =
+    '<div class="dash-card">' +
+      '<div class="dash-num blue">' + stats.total_quizz + '</div>' +
+      '<div class="dash-label">Quiz joués</div>' +
+    '</div>' +
+    '<div class="dash-card">' +
+      '<div class="dash-num ' + meilleurColor + '">' + stats.meilleur_score_pct + '<span>%</span></div>' +
+      '<div class="dash-label">Meilleur score</div>' +
+    '</div>' +
+    '<div class="dash-card">' +
+      '<div class="dash-num ' + moyenneColor + '">' + stats.moyenne_score_pct + '<span>%</span></div>' +
+      '<div class="dash-label">Moyenne</div>' +
+    '</div>' +
+    '<div class="dash-card">' +
+      '<div class="dash-num">' + stats.taux_reussite + '<span>%</span></div>' +
+      '<div class="dash-label">Taux de réussite</div>' +
+    '</div>' +
+    '<div class="dash-card full">' +
+      '<div class="dash-label" style="margin-bottom:4px;">Questions répondues</div>' +
+      '<div class="dash-num blue">' + stats.questions_repondues + '</div>' +
+    '</div>' +
+    '<div class="dash-card full">' +
+      '<div class="dash-label">Historique des sessions</div>' +
+      historyHTML +
+    '</div>';
+}
+</script>
+</body>
+</html>
