@@ -727,7 +727,7 @@ function initials(n) { return String(n).slice(0,2).toUpperCase(); }
 
 function showPopup(act) {
   var pseudo = String(act.pseudo || 'Joueur');
-  var theme  = String(act.theme  || 'un quiz');
+  var theme  = String(act.theme  || 'a terminé un quiz');
   var score  = parseInt(act.score || 0);
   var nb     = parseInt(act.nb_questions || 1);
   var active = act.is_active == 1;
@@ -744,7 +744,7 @@ function showPopup(act) {
   document.getElementById('popup-container').appendChild(card);
 
   setTimeout(function() {
-    card.style.animation = 'popOut 0.35s ease forwards';
+    card.style.animation = 'popOut 0.55s ease forwards';
     setTimeout(function() { card.remove(); }, 350);
   }, 5000);
 }
@@ -763,8 +763,8 @@ if (activities.length > 0) {
 // SLIDER
 var slideInfo = [
   { title: 'Découvre nos quiz',   desc: '<a href="inscription.php">Commencer maintenant →</a>' },
-  { title: 'Défie-toi',           desc: 'Améliore tes scores à chaque partie' },
-  { title: 'Explore les thèmes',  desc: 'Des centaines de domaines disponibles' },
+  { title: 'Défie-toi',           desc: '<a href="inscription.php">Améliore tes scores à chaque partie</a>' },
+  { title: 'Explore les thèmes',  desc: '<a href="inscription.php">Des centaines de domaines disponibles</a>' },
 ];
 
 var slides   = document.querySelectorAll('.img-slide');
