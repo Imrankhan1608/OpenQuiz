@@ -423,5 +423,7 @@ function verifyPassword() {
   return true;
 }
 </script>
+<?php include __DIR__ . '/joe_widget.php'; ?>
+
 </body>
 </html>
